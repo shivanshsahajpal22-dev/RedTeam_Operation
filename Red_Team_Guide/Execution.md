@@ -1,5 +1,8 @@
 
 > Dev Note: Header formatting is broken; I will fix them later 
+
+`Fun fact: Kali has a built-in web server; Apache2 can start with sudo service apache2 start`
+
 ---
 
 ## Metasploitable 
@@ -1794,3 +1797,641 @@ It's being able to answer:
 **What am I trying to prove? → What information do I need? → Which module provides it? → Is the target actually vulnerable? → What's the least invasive way to demonstrate impact? → What evidence proves the result?**
 
 That approach scales across Metasploit releases and is much more useful than memorizing individual exploit commands.
+
+---
+# TheFatRat — Practical Authorized Red-Team Guide
+
+> **Scope:** Authorized red-team engagements, penetration tests, and isolated labs. TheFatRat is primarily useful as a payload-generation/automation wrapper around existing offensive tooling. Since `msfvenom` is already covered separately, this guide focuses on TheFatRat's role rather than repeating payload-generation fundamentals.
+
+## 1. What TheFatRat Actually Is
+
+TheFatRat is a **menu-driven automation tool** that brings together several payload-generation and post-generation operations behind a simpler interface.
+
+The important distinction is:
+
+```text
+Metasploit
+    ↓
+Framework for exploitation, sessions, auxiliary modules, post modules
+
+msfvenom
+    ↓
+Direct payload generation
+
+TheFatRat
+    ↓
+Automation / wrapper around payload-generation workflows
+```
+
+So TheFatRat does **not replace Metasploit**.
+
+It is better thought of as:
+
+```text
+Manual workflow:
+
+Choose payload
+     ↓
+Configure msfvenom
+     ↓
+Choose format
+     ↓
+Generate artifact
+     ↓
+Configure handler
+     ↓
+Test
+```
+
+versus:
+
+```text
+TheFatRat:
+
+Choose workflow
+     ↓
+TheFatRat automates several steps
+     ↓
+Artifact / supporting configuration
+```
+
+### When is it useful?
+
+Use it when:
+
+* You're learning how payload-generation workflows fit together.
+* You want a menu-driven interface for a lab.
+* You need to repeatedly perform a simple, authorized workflow.
+* You're demonstrating offensive tooling to students or trainees.
+
+Don't use it simply because it sounds more advanced than `msfvenom`.
+
+If you already understand `msfvenom`, you can usually reproduce the important underlying operations directly.
+
+---
+
+## 2. Installation & First Run
+
+On Kali, first check whether the package is available through your configured repositories:
+
+```bash
+sudo apt update
+apt search thefatrat
+```
+
+If your Kali installation provides it:
+
+```bash
+sudo apt install fatrat
+```
+
+Then start it using the installed command. Depending on the package/version, the launcher may be:
+
+```bash
+fatrat
+```
+
+or:
+
+```bash
+thefatrat
+```
+
+If neither exists, locate the installed executable:
+
+```bash
+command -v fatrat
+command -v thefatrat
+```
+
+For a source installation, use the project's documentation/repository for the version you're using rather than following old installation scripts from random tutorials.
+
+### First thing to do
+
+Don't immediately select a payload.
+
+Start by examining the menu and identifying which operations are actually relevant to your engagement.
+
+Your mental model should be:
+
+```text
+TheFatRat
+├── Payload/workflow selection
+├── Payload configuration
+├── Output generation
+├── Supporting Metasploit workflow
+└── Testing
+```
+
+The exact menu names can differ between versions/forks, so treat the menu displayed by **your installed version** as authoritative.
+
+---
+
+## 3. The Main Workflow
+
+The most important thing to understand is that TheFatRat is **workflow automation**, not a completely separate exploitation framework.
+
+A typical authorized workflow looks like:
+
+```text
+                 Engagement objective
+                         │
+                         ▼
+                 Select target OS
+                         │
+                         ▼
+                 Select payload
+                         │
+                         ▼
+                 Configure callback
+                         │
+                         ▼
+                 Select output type
+                         │
+                         ▼
+                 Generate artifact
+                         │
+                         ▼
+                Configure Metasploit
+                         │
+                         ▼
+                  Test execution
+                         │
+                         ▼
+                  Verify session
+                         │
+                         ▼
+                     Evidence
+                         │
+                         ▼
+                     Cleanup
+```
+
+### Why use TheFatRat instead of msfvenom?
+
+The answer is **convenience**.
+
+For example, if you already know how to do:
+
+```text
+msfvenom
++
+multi/handler
++
+payload configuration
+```
+
+manually, TheFatRat doesn't fundamentally change the underlying operation.
+
+Its value is reducing the amount of typing and menu navigation.
+
+### When NOT to use it
+
+Prefer direct Metasploit/msfvenom when:
+
+* You need precise control over payload parameters.
+* You're troubleshooting a payload.
+* You're developing a repeatable professional workflow.
+* You need to understand exactly what command was executed.
+* You need reproducibility for an assessment report.
+
+For professional work, knowing what TheFatRat is doing underneath is more valuable than blindly following its menu.
+
+---
+
+## 4. Payloads, Formats & Handlers
+
+Because you've already covered `msfvenom`, treat TheFatRat as another interface for the same general payload-generation ecosystem.
+
+### Payload selection
+
+The first decision should be based on the target:
+
+```text
+Target
+  │
+  ├── Windows → Windows payload
+  ├── Linux   → Linux payload
+  ├── Android → Android payload
+  └── Other   → Appropriate supported payload
+```
+
+Then consider what the engagement actually requires:
+
+```text
+Need basic command execution?
+        ↓
+Use the simplest appropriate shell/session.
+
+Need a Metasploit session?
+        ↓
+Use a compatible Meterpreter payload.
+```
+
+Don't automatically choose the most feature-rich payload.
+
+### Output format
+
+The output format should match the authorized delivery/test scenario.
+
+Examples include executable or script representations supported by the underlying tooling.
+
+The important distinction is:
+
+```text
+Payload
+    =
+what executes
+
+Format
+    =
+how the payload is represented
+```
+
+You've already covered the details of this with `msfvenom`, so don't treat TheFatRat's format selection as a new payload technology.
+
+---
+
+### Handler relationship
+
+A generated reverse payload still requires an appropriate listener.
+
+The relationship is:
+
+```text
+TheFatRat
+    ↓
+Generates payload artifact
+    ↓
+Target executes artifact
+    ↓
+Target connects back
+    ↓
+Metasploit handler
+    ↓
+Session
+```
+
+The handler is normally configured in Metasploit:
+
+```text
+use exploit/multi/handler
+```
+
+Then configure the **same compatible payload and callback parameters** that were used for the artifact.
+
+This is one of the most common places beginners make mistakes.
+
+For example:
+
+```text
+Generated payload:
+    Windows
+    x64
+    reverse connection
+    port X
+
+Handler:
+    Windows
+    x64
+    reverse connection
+    port Y
+```
+
+The mismatch means the callback won't work.
+
+---
+
+## 5. Practical Engagement Workflow
+
+### Step 1 — Define the objective
+
+Don't start with:
+
+> "I need a payload."
+
+Start with:
+
+> "What am I trying to demonstrate?"
+
+Examples:
+
+```text
+Demonstrate code execution on an authorized workstation.
+
+Demonstrate whether endpoint controls detect a known
+offensive payload.
+
+Validate that a specific vulnerability leads to code execution.
+```
+
+The objective determines the appropriate payload and testing method.
+
+---
+
+### Step 2 — Establish the target
+
+Record:
+
+```text
+Target OS
+Architecture
+Target address
+Network path
+Allowed execution method
+Testing window
+```
+
+---
+
+### Step 3 — Choose the minimum payload
+
+For example:
+
+```text
+Need proof of execution
+        ↓
+Simple shell/session may be enough
+
+Need controlled Metasploit post-exploitation
+        ↓
+Meterpreter may be appropriate
+```
+
+The principle is:
+
+> **Use the least powerful mechanism that proves the objective.**
+
+---
+
+### Step 4 — Generate through TheFatRat
+
+Use the menu to select the authorized payload workflow and provide the required callback/output settings.
+
+After generation, **don't assume success merely because TheFatRat reports that an artifact was created.**
+
+Verify the resulting file yourself.
+
+For example:
+
+```bash
+file <artifact>
+ls -lh <artifact>
+```
+
+For scripts, inspect the generated content in your lab and confirm that it corresponds to the intended configuration.
+
+---
+
+### Step 5 — Configure Metasploit
+
+Start:
+
+```bash
+msfconsole
+```
+
+Then use the appropriate handler:
+
+```text
+use exploit/multi/handler
+```
+
+Configure the matching payload and callback settings.
+
+Check everything:
+
+```text
+show options
+```
+
+Then start the listener.
+
+---
+
+### Step 6 — Execute only through the approved path
+
+Don't casually send the artifact to systems outside the engagement.
+
+For an internal assessment, the delivery method itself may be part of the test:
+
+```text
+Approved workstation
+       ↓
+Approved execution method
+       ↓
+Payload
+       ↓
+Handler
+       ↓
+Session
+```
+
+Document the timestamp and target.
+
+---
+
+### Step 7 — Verify the result
+
+Once a session exists, establish the minimum evidence required.
+
+For example:
+
+```text
+sessions
+```
+
+Then interact with the appropriate session.
+
+For a simple code-execution demonstration, information such as:
+
+```text
+identity
+hostname
+OS/version
+```
+
+may be enough.
+
+Don't turn a proof-of-concept into unnecessary data collection.
+
+---
+
+### Step 8 — Record the security-control result
+
+This is especially important in modern red-team engagements.
+
+Record:
+
+```text
+Payload generated
+       ↓
+Payload delivered
+       ↓
+Payload executed
+       ↓
+AV/EDR response
+       ↓
+Alert generated?
+       ↓
+SOC response?
+       ↓
+Session established?
+```
+
+This gives you a useful finding regardless of whether the payload succeeded.
+
+---
+
+### Step 9 — Cleanup
+
+When the objective has been demonstrated:
+
+```text
+Terminate sessions
+       ↓
+Remove test artifact
+       ↓
+Remove temporary infrastructure
+       ↓
+Verify cleanup
+       ↓
+Document evidence
+```
+
+---
+
+## 6. TheFatRat vs msfvenom — What You Should Actually Learn
+
+Since you've already learned `msfvenom`, this is the most important section.
+
+### `msfvenom`
+
+Use it when you need **control**.
+
+```text
+Precise payload
+Precise parameters
+Precise format
+Reproducibility
+Troubleshooting
+Automation/scripts
+```
+
+### TheFatRat
+
+Use it when you want **convenience**.
+
+```text
+Menu-driven workflow
+Automation
+Quick lab demonstrations
+Learning payload-generation workflows
+```
+
+### Metasploit
+
+Use it for the **larger operation**.
+
+```text
+Auxiliary
+    ↓
+Enumeration
+
+Exploit
+    ↓
+Vulnerability exploitation
+
+Payload
+    ↓
+Session
+
+Post
+    ↓
+Controlled post-exploitation
+```
+
+### A good way to think about all three
+
+```text
+                  METASPLOIT
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+      Exploitation             Sessions
+          │                       │
+          └───────────┬───────────┘
+                      │
+                   msfvenom
+                      │
+                Payload creation
+                      │
+                      ▲
+                      │
+                   TheFatRat
+                      │
+             Workflow automation
+```
+
+TheFatRat therefore isn't something you need to put **above** Metasploit in your toolkit hierarchy.
+
+A sensible priority is:
+
+```text
+HIGH PRIORITY
+    │
+    ├── Metasploit
+    ├── msfconsole
+    ├── msfvenom
+    ├── Auxiliary modules
+    ├── Exploit modules
+    └── Post modules
+    │
+LOWER PRIORITY / CONVENIENCE
+    │
+    └── TheFatRat
+```
+
+### What TheFatRat is good for
+
+**Good:**
+
+* Learning
+* Labs
+* Demonstrations
+* Understanding automated payload workflows
+* Quickly reproducing simple test setups
+
+**Less useful:**
+
+* Precise professional payload development
+* Complex engagements
+* Troubleshooting
+* Highly customized workflows
+* Modern EDR research
+
+And don't treat TheFatRat as an **AV-bypass solution**. Modern endpoint security can detect behavior, memory activity, process relationships, network activity, and other characteristics that aren't solved simply by changing how a payload is packaged.
+
+### Final mental model
+
+If you've already learned Metasploit and msfvenom, you don't need to memorize TheFatRat's menus.
+
+Remember:
+
+```text
+TheFatRat
+    =
+"Automate some payload-generation workflow"
+
+msfvenom
+    =
+"Give me precise control over the payload"
+
+Metasploit
+    =
+"Give me the framework to discover, exploit,
+manage sessions, and perform authorized
+post-exploitation"
+```
+
+That distinction will remain useful even when individual TheFatRat menu options or implementations change.
