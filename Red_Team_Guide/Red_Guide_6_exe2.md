@@ -1457,3 +1457,95 @@ impacket suite                                  — offline credential processin
 **Standing operational reminder:** Havoc's built-in operator log (visible in the teamserver's `logs/` directory and exportable from the client) is your legal and professional paper trail. Export it at engagement end and include it as a timestamped appendix in the final report — it maps every operator action to a specific time window, directly correlated against the authorized RoE testing schedule. If anything goes wrong or is disputed, this log is what demonstrates you stayed within scope.
 
 ---
+
+**BONUS SECTION**
+
+`if you have reached here i am giving you some additional c2 tools list here`
+
+```
+ICMP Tunneling -> ICMP protocol as tunnel
+Github as C2 -> Dystopia
+Gmail as C2 -> Gcat
+Discord as C2 -> PyC2ord
+Slack as C2 -> slackor
+Twitter as C2 -> Twittor
+normal website as c2 -> TrevorC2
+telegram as C2 -> teleC2 
+```
+
+## **Here is another tools called graph strike**
+
+**What GraphStrike Actually Is**
+
+GraphStrike is a tool suite developed by Red Siege Information Security that enables Cobalt Strike's Beacon to use Microsoft Graph API for HTTPS C2 communications. All implant traffic routes through graph.microsoft.com, making it very difficult to identify as Beacon traffic because it uses legitimate methods to interact with Microsoft Cloud resources.
+
+The core mechanism:
+
+GraphStrike transmits all Beacon traffic via two files created in the attacker's SharePoint site. Rather than building a true External C2 (which requires developing and maintaining a custom implant), GraphStrike leverages an open-source User Defined Reflective Loader called AceLdr (adapted as GraphLdr) to hook the WinINet library calls that Beacon normally makes and redirect them through Graph API instead.
+
+GraphStrike additionally incorporates call stack spoofing and GraphStrike does not create any paid assets in Azure, so no additional cost is incurred.
+
+### Why It Was Built — The Problem It Solves
+
+Most C2 frameworks do not support methods to fetch or rotate access tokens, which makes them unable to use Graph API. This can make it difficult for red teams to replicate APT techniques, and deprives defenders of a chance to observe and develop signatures for this kind of activity.
+
+In other words — real APT groups were already doing this, red teams couldn't replicate it easily, and defenders had no exposure to it. GraphStrike closes that gap.
+
+#### The Broader Category — Graph API as C2 Transport
+
+GraphStrike is one tool in a whole family of techniques abusing Microsoft's own infrastructure as a C2 channel. Threat intelligence has been released regarding several different APTs already leveraging Microsoft Graph API for offensive campaigns: BLUELIGHT (APT37/ScarCruft), Graphite (APT28/Fancy Bear), Graphican (APT15/Nickel/The Flea), and SiestaGraph (unknown threat actor).
+
+The technique has expanded well beyond Cobalt Strike. In 2024, a phishing campaign using the Havoc post-exploitation framework integrated SharePoint into its C2 workflow using Graph API as the transport mechanism — the attack started with an HTML phishing payload that redirected victims to a SharePoint-hosted PowerShell script. Once the Havoc Demon agent was deployed, it used Microsoft Graph API to communicate with the attacker-controlled SharePoint site, with all command-and-response traffic stored in SharePoint documents, encoded in AES-256 CTR mode and retrieved via Graph API file calls.
+
+And most recently, Group-IB identified HOLLOWGRAPH, a new malware sample that uses the Microsoft Graph API through a compromised Microsoft 365 account to communicate with operators — using Microsoft 365 calendar events as the C2 channel, with DNS tunneling to refresh credentials. The malware supports just two commands, get and send, and executes both exclusively through trusted Microsoft cloud infrastructure.
+
+#### Why This Category Is So Effective
+```
+graph.microsoft.com is:
+  - A Microsoft-owned domain with a globally trusted TLS certificate
+  - Present in virtually every corporate network's whitelist/allowlist
+  - Encrypted (HTTPS) — no DPI can read the content
+  - Expected — Microsoft 365 traffic generates constant legitimate Graph API calls
+  - Free — a basic Microsoft account + SharePoint site costs nothing
+
+From a defender's perspective:
+  - You can't block graph.microsoft.com without breaking M365 for the entire org
+  - You can't distinguish malicious Graph API calls from legitimate ones at the
+    network layer without application-layer telemetry (Microsoft Defender for Cloud Apps,
+    Purview, Entra sign-in logs)
+  - The traffic volume from legitimate M365 usage drowns out C2 beacon callbacks
+```
+**The Full Ecosystem of "Living Off Trusted Sites" C2**
+```
+GraphStrike represents a broader technique category sometimes called LOTS (Living Off Trusted Sites) C2 — using high-reputation cloud infrastructure as the actual C2 transport:
+
+GraphStrike          — Cobalt Strike Beacon via SharePoint/Graph API
+Havoc + Graph API    — Havoc Demon via SharePoint/Graph API (2024 campaign)
+HOLLOWGRAPH          — Calendar events as C2 channel via Graph API
+C3 (F-Secure)        — Generic framework for building custom C2 over
+                        cloud services (OneDrive, Slack, GitHub, etc.)
+Sliver + GitHub      — Sliver implant using GitHub Gists as a dead-drop C2 channel
+Cobalt Strike + Slack — Teams/Slack messages as C2 transport
+PoshC2 + Dropbox     — Dropbox files as C2 channel
+```
+Where GraphStrike Fits in a Real Engagement
+```
+Engagement scenario: target has strict egress filtering and a mature SOC
+                     that monitors outbound connections to unknown IPs/domains
+
+Standard C2 (Havoc/Mythic/Sliver) problem:
+  Even with a well-configured redirector and a legitimate-looking domain,
+  the domain is newly registered, has no prior traffic history,
+  and a skilled analyst will flag it
+
+GraphStrike solution:
+  All C2 traffic goes to graph.microsoft.com — a domain the organization
+  itself already generates thousands of daily requests to
+  No new domain to flag, no unknown IP to block, no traffic anomaly to detect
+  The only detection path is behavioral: "why is this process making
+  Graph API calls it has never made before" — which requires EDR + M365 Defender
+  integration to correlate, not just network monitoring
+```
+**One-Line Summary**
+
+GraphStrike is a Cobalt Strike plugin that tunnels all beacon C2 traffic through Microsoft's own Graph API and SharePoint infrastructure — making the implant's phone-home traffic indistinguishable from legitimate Microsoft 365 usage at the network layer, replicating a technique that multiple real APT groups were already using operationally before the tool existed.
