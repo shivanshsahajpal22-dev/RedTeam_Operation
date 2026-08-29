@@ -1878,6 +1878,7 @@ On Kali, first check whether the package is available through your configured re
 sudo apt update
 apt search thefatrat
 ```
+**or use the github clone method it comes with a installation script in the very folder** 
 
 If your Kali installation provides it:
 
