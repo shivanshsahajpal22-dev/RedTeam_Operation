@@ -1,6 +1,6 @@
 > Continuation with more red team tools that are used
 
-`let us discuss about the three succesors of the powershell empire`
+`let us discuss about the three succesors of the powershell empire: silver , mythic and havoc`
 
 ---
 ## Silver (by bishop fox) : opensource c2 platform 
